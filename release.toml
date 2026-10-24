@@ -1,0 +1,16 @@
+# cargo-release config. Install with `cargo install cargo-release`.
+#
+# Release flow for this repo: a push to main whose Cargo.toml version has no tag
+# yet triggers the Release workflow, which tags, builds the prebuilt binaries,
+# creates the GitHub release, and writes nix/sources.json. So cargo-release's job
+# here is only to bump the version and commit it — CI owns tagging and pushing.
+#
+#   cargo release patch        # dry-run: shows what it would do
+#   cargo release patch -x     # execute: bump + commit (then `git push`)
+#
+# We deliberately do NOT publish to crates.io (the repo is private) and do NOT
+# tag/push from cargo-release, to avoid racing the CI tagger.
+publish = false
+tag = false
+push = false
+pre-release-commit-message = "release: v{{version}}"

@@ -53,8 +53,9 @@ jobs:
       fail-fast: true
       matrix:
         include:
+          # x86_64-apple-darwin intentionally dropped (Intel Macs); macOS runners
+          # bill at 10x on private repos, so we only build Apple Silicon.
           - { os: macos-latest, target: aarch64-apple-darwin }
-          - { os: macos-latest, target: x86_64-apple-darwin }
           - { os: ubuntu-latest, target: x86_64-unknown-linux-musl }
           - { os: ubuntu-latest, target: aarch64-unknown-linux-musl }
     runs-on: ${{ matrix.os }}
@@ -113,16 +114,21 @@ jobs:
       # `nix run github:<owner>/<repo>` downloads them instead of building.
       - name: Update nix/sources.json
         run: |
-          base="https://github.com/$GITHUB_REPOSITORY/releases/download/v$VERSION"
+          # Use the GitHub API asset endpoint (not the browser download URL) so
+          # the flake can fetch it from a PRIVATE repo with a netrc token. For a
+          # public repo this URL also works. The asset id is resolved by name.
           entry() { # <nix system> <rust target>
             f="dist/kozutsumi-$VERSION-$2.tar.gz"
+            name="$(basename "$f")"
             hash="sha256-$(openssl dgst -sha256 -binary "$f" | base64)"
-            jq -n --arg k "$1" --arg url "$base/$(basename "$f")" --arg hash "$hash" \
+            id="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/v$VERSION" \
+              --jq ".assets[] | select(.name == \"$name\") | .id")"
+            url="https://api.github.com/repos/$GITHUB_REPOSITORY/releases/assets/$id"
+            jq -n --arg k "$1" --arg url "$url" --arg hash "$hash" \
               '{($k): {url: $url, hash: $hash}}'
           }
           jq -n --arg v "$VERSION" --argjson s "$(
             { entry aarch64-darwin aarch64-apple-darwin
-              entry x86_64-darwin x86_64-apple-darwin
               entry aarch64-linux aarch64-unknown-linux-musl
               entry x86_64-linux x86_64-unknown-linux-musl
             } | jq -s add)" '{version: $v, systems: $s}' > nix/sources.json
