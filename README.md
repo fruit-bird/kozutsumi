@@ -34,10 +34,24 @@ kozutsumi is a flake that ships **prebuilt binaries** built by CI, so pulling it
 into a NixOS or nix-darwin config does not build anything locally — it fetches
 the release artifact for your system from `nix/sources.json`.
 
-> [!NOTE]
-> The repository is private. Each machine that fetches the flake needs a GitHub
-> token with read access to it. Add to `/etc/nix/nix.conf` (or `nix.extraOptions`):
-> `access-tokens = github.com=ghp_...` — or use a `~/.netrc` entry for github.com.
+> [!IMPORTANT]
+> The repository is private, which needs auth in **two** places on each machine:
+> 1. **Flake metadata** (resolving `github:fruit-bird/kozutsumi`): add
+>    `access-tokens = github.com=ghp_...` to `nix.conf` (`nix.extraOptions`).
+> 2. **The release binary** (fetched by the Nix daemon in a build sandbox): the
+>    daemon does *not* use `access-tokens` for this. Point it at a netrc:
+>    ```
+>    # /etc/nix/nix.conf
+>    netrc-file = /etc/nix/netrc
+>    # /etc/nix/netrc
+>    machine api.github.com login x password ghp_...
+>    ```
+>    then restart the daemon. CI publishes the binary URL as the authenticated
+>    GitHub **API asset endpoint** so this netrc applies; curl drops the token on
+>    the redirect to the signed download URL.
+>
+> If this per-machine auth is more friction than you want, the simpler path is a
+> **public repo + Cachix** (no tokens anywhere). See the release-pipeline PR.
 
 Try it without installing:
 ```sh
