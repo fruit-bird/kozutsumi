@@ -1,6 +1,6 @@
 use std::{
-    env, format,
-    io::Write as _,
+    env,
+    io::{ErrorKind, Write as _},
     path::Path,
     process::{Command, Stdio},
 };
@@ -67,12 +67,6 @@ pub fn choose(config_path: &Path, multi: bool) -> anyhow::Result<()> {
 }
 
 pub fn choose_fzf(config_path: &Path, multi: bool, fzf_args: &[String]) -> anyhow::Result<()> {
-    if let Err(_) = Command::new("command").arg("-v").arg("fzf").output() {
-        anyhow::bail!("fzf is not installed or not found in PATH");
-    }
-
-    // dbg!(fzf_args);
-
     let current_exe = env::current_exe()?;
     let config = ParcelConfig::load(config_path)?;
     if config.is_empty() {
@@ -80,23 +74,33 @@ pub fn choose_fzf(config_path: &Path, multi: bool, fzf_args: &[String]) -> anyho
         return Ok(());
     }
 
-    let mut args = vec!["--preview-window=right:60%:wrap", "--tmux=center,70%,40%"];
+    let mut args = vec!["--preview-window=right:60%:wrap"];
     args.extend(fzf_args.iter().map(String::as_str));
     if multi {
         args.push("--multi");
     }
 
-    let fzf = Command::new("fzf")
+    // The preview runs through `sh -c`, so shell-quote the paths we interpolate.
+    let preview = format!(
+        "{} --config {} list {{}}",
+        shell_quote(&current_exe.to_string_lossy()),
+        shell_quote(&config_path.to_string_lossy()),
+    );
+
+    let fzf = match Command::new("fzf")
         .args(args)
         .arg("--preview")
-        .arg(format!(
-            "{} --config {} list {{}}",
-            current_exe.display(),
-            config_path.as_os_str().display(),
-        ))
+        .arg(preview)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .spawn()?;
+        .spawn()
+    {
+        Ok(child) => child,
+        Err(e) if e.kind() == ErrorKind::NotFound => {
+            anyhow::bail!("fzf is not installed or not found in PATH");
+        }
+        Err(e) => return Err(e.into()),
+    };
 
     let mut stdin = fzf.stdin.as_ref().unwrap();
     for parcel in config.parcels.keys() {
@@ -127,4 +131,10 @@ pub fn choose_fzf(config_path: &Path, multi: bool, fzf_args: &[String]) -> anyho
             _ => anyhow::bail!("fzf failed with status: {}", output.status),
         }
     }
+}
+
+/// Wrap a string in single quotes for safe interpolation into an `sh -c` command,
+/// so paths containing spaces or shell metacharacters survive the fzf preview.
+fn shell_quote(s: &str) -> String {
+    format!("'{}'", s.replace('\'', r"'\''"))
 }

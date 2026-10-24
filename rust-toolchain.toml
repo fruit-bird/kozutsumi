@@ -1,0 +1,6 @@
+# kozutsumi uses nightly-only features (see the `#![feature(...)]` attributes in
+# src/main.rs), so a nightly toolchain is required to build. Pinning it here lets
+# rustup install the right channel automatically and keeps CI and local builds in sync.
+[toolchain]
+channel = "nightly"
+components = ["rustfmt", "clippy", "rust-src"]
