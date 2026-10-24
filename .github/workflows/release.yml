@@ -1,0 +1,138 @@
+name: Release
+
+# Every push to main releases if the Cargo.toml version has no tag yet.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      new: ${{ steps.v.outputs.new }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: v
+        run: |
+          version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null; then
+            echo "new=false" >> "$GITHUB_OUTPUT"
+            echo "v$version already released; skipping" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "new=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  test:
+    needs: check
+    if: needs.check.outputs.new == 'true'
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+      # With no tests defined this just compiles and passes.
+      - run: cargo test --locked --all-features
+
+  build:
+    needs: [check, test]
+    if: needs.check.outputs.new == 'true'
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { os: macos-latest, target: aarch64-apple-darwin }
+          - { os: macos-latest, target: x86_64-apple-darwin }
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-musl }
+          - { os: ubuntu-latest, target: aarch64-unknown-linux-musl }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@nightly
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - if: runner.os == 'Linux'
+        uses: mlugg/setup-zig@v2
+
+      - if: runner.os == 'Linux'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-zigbuild
+
+      - run: scripts/release.sh --targets ${{ matrix.target }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  release:
+    needs: [check, build]
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ needs.check.outputs.version }}
+    steps:
+      # checkout first: it cleans the workspace, which would delete dist/
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum *.tar.gz > SHA256SUMS
+
+      - name: Create release
+        run: |
+          gh release create "v$VERSION" dist/* \
+            --target "$GITHUB_SHA" \
+            --title "v$VERSION" \
+            --generate-notes
+
+      # Point the flake at the artifacts we just published, so
+      # `nix run github:<owner>/<repo>` downloads them instead of building.
+      - name: Update nix/sources.json
+        run: |
+          base="https://github.com/$GITHUB_REPOSITORY/releases/download/v$VERSION"
+          entry() { # <nix system> <rust target>
+            f="dist/kozutsumi-$VERSION-$2.tar.gz"
+            hash="sha256-$(openssl dgst -sha256 -binary "$f" | base64)"
+            jq -n --arg k "$1" --arg url "$base/$(basename "$f")" --arg hash "$hash" \
+              '{($k): {url: $url, hash: $hash}}'
+          }
+          jq -n --arg v "$VERSION" --argjson s "$(
+            { entry aarch64-darwin aarch64-apple-darwin
+              entry x86_64-darwin x86_64-apple-darwin
+              entry aarch64-linux aarch64-unknown-linux-musl
+              entry x86_64-linux x86_64-unknown-linux-musl
+            } | jq -s add)" '{version: $v, systems: $s}' > nix/sources.json
+          cat nix/sources.json
+
+      - name: Commit nix/sources.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add nix/sources.json
+          git commit -m "nix: sources for v$VERSION"
+          git pull --rebase origin main
+          git push origin HEAD:main

@@ -1,0 +1,19 @@
+anime:
+  # - Sequel
+  - IINA
+  - ~/Movies/Anime
+  - raycast://confetti
+  # - sh:osascript -e 'display notification "Hello from me" with title "Hello"'
+  # - sh:tmux popup -E -d ~/Movies/Anime ani-cli -c
+  # - https://reddit.com/r/onepiece
+
+test:
+  - ~/Movies/Test
+  - raycast://confetti
+
+movies:
+  - ~/Movies/Movies
+  - raycast://confetti
+
+notify:
+  - sh:osascript -e 'display notification "Your download is complete!" with title "Download Complete"'

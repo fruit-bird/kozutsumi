@@ -1,0 +1,25 @@
+[package]
+name = "kozutsumi"
+authors = ["fruit-bird"]
+version = "0.2.0"
+description = "A single tool for opening groups of applications, files, folders, and URLs"
+repository = "https://github.com/fruit-bird/testing"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.104"
+clap = { version = "4.5.50", features = ["derive", "env"] }
+clap_complete = { version = "4.5.59", optional = true }
+config = { version = "0.15.27", features = ["yaml"], default-features = false }
+dialoguer = { version = "0.12.0", features = ["fuzzy-select"], optional = true }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = { version = "1.0.154", optional = true }
+shellexpand = "3.1.1"
+url = { version = "2.5.7", features = ["serde"] }
+
+[features]
+default = ["completions", "dialog", "json", "shell"]
+json = ["dep:serde_json"]
+dialog = ["dep:dialoguer"]
+completions = ["dep:clap_complete"]
+shell = []

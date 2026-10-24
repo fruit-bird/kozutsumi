@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "systems": {
+    "aarch64-darwin": {
+      "url": "https://github.com/OWNER/REPO/releases/download/v0.2.0/kozutsumi-0.2.0-aarch64-apple-darwin.tar.gz",
+      "hash": "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    },
+    "x86_64-darwin": {
+      "url": "https://github.com/OWNER/REPO/releases/download/v0.2.0/kozutsumi-0.2.0-x86_64-apple-darwin.tar.gz",
+      "hash": "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    },
+    "x86_64-linux": {
+      "url": "https://github.com/OWNER/REPO/releases/download/v0.2.0/kozutsumi-0.2.0-x86_64-unknown-linux-musl.tar.gz",
+      "hash": "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    },
+    "aarch64-linux": {
+      "url": "https://github.com/OWNER/REPO/releases/download/v0.2.0/kozutsumi-0.2.0-aarch64-unknown-linux-musl.tar.gz",
+      "hash": "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    }
+  }
+}
