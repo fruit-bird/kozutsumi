@@ -14,9 +14,9 @@ cd "$(dirname "$0")/.."
 BIN=kozutsumi
 DIST=dist
 
+# Apple Silicon only; x86_64-apple-darwin (Intel) is intentionally not built.
 MAC_TARGETS=(
   aarch64-apple-darwin
-  x86_64-apple-darwin
 )
 # musl => static binaries that run on any distro
 LINUX_TARGETS=(
