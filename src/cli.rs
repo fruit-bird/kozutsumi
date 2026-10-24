@@ -46,10 +46,13 @@ pub enum ParcelCommands {
         /// Simpler interface for`--fzf-args="--multi"`
         #[clap(long, default_value_t)]
         multi: bool,
-        /// Override arguments to pass to fzf
+        /// Extra arguments to pass to fzf (repeatable)
         ///
-        /// Example: --fzf-args="-h 40% --layout=reverse --border --cycle"
-        #[clap(long, requires_if("fzf", "chooser"), action = ArgAction::Append, env = "FZF_DEFAULT_OPTS", value_delimiter = ' ')]
+        /// Example: --fzf-args=--layout=reverse --fzf-args=--border
+        ///
+        /// fzf already honours FZF_DEFAULT_OPTS on its own, so options set there
+        /// still apply without being passed here.
+        #[clap(long, action = ArgAction::Append)]
         fzf_args: Vec<String>,
     },
     /// Lists all available parcels
