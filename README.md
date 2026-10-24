@@ -30,18 +30,67 @@ cargo install kozutsumi [--features=json,dialoguer]
 ```
 
 ### Nix
-In your flake configuration:
+kozutsumi is a flake that ships **prebuilt binaries** built by CI, so pulling it
+into a NixOS or nix-darwin config does not build anything locally — it fetches
+the release artifact for your system from `nix/sources.json`.
+
+> [!NOTE]
+> The repository is private. Each machine that fetches the flake needs a GitHub
+> token with read access to it. Add to `/etc/nix/nix.conf` (or `nix.extraOptions`):
+> `access-tokens = github.com=ghp_...` — or use a `~/.netrc` entry for github.com.
+
+Try it without installing:
+```sh
+nix run github:fruit-bird/kozutsumi -- list
+```
+
+Add the flake to your inputs:
 ```nix
-{ pkgs, ... }: {
-  environment.systemPackages = with pkgs; [
-    kozutsumi
-  ];
+inputs.kozutsumi.url = "github:fruit-bird/kozutsumi";
+```
+
+### Install the package
+Either add the overlay and use `pkgs.kozutsumi`:
+```nix
+{ inputs, ... }: {
+  nixpkgs.overlays = [ inputs.kozutsumi.overlays.default ];
+  environment.systemPackages = [ pkgs.kozutsumi ];
 }
 ```
-Or install directly with nix-env:
-```sh
-nix-env -iA nixpkgs.kozutsumi
+or reference the package directly: `inputs.kozutsumi.packages.${pkgs.system}.default`.
+
+### Configure declaratively
+Define your parcels in Nix instead of editing `kozutsumi.yml` by hand.
+
+**home-manager** (recommended — works under NixOS and nix-darwin). Writes
+`~/.config/kozutsumi/kozutsumi.yml` and installs the package:
+```nix
+{ inputs, ... }: {
+  imports = [ inputs.kozutsumi.homeManagerModules.default ];
+  programs.kozutsumi = {
+    enable = true;
+    parcels = {
+      work = [ "Slack" "~/work" "https://github.com" ];
+      notify = [ "sh:osascript -e 'display notification \"done\"'" ];
+    };
+  };
+}
 ```
+
+**NixOS / nix-darwin** (system-wide). Writes `/etc/kozutsumi/kozutsumi.yml` and
+installs a `kozutsumi` that defaults to it (your own `--config` still overrides):
+```nix
+{ inputs, ... }: {
+  imports = [ inputs.kozutsumi.nixosModules.default ];   # or .darwinModules.default
+  programs.kozutsumi = {
+    enable = true;
+    parcels.work = [ "Slack" "~/work" ];
+  };
+}
+```
+
+Both modules also expose a free-form `settings` option, merged on top of
+`parcels`, for anything not expressible as a parcel.
 
 ## Usage
 ```
