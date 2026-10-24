@@ -30,59 +30,105 @@
         })
       ];
 
-      # Helpers for producing system-specific outputs
-      supportedSystems = [
+      # Prebuilt binaries published by CI (nix/sources.json). The set of systems
+      # with a release binary is derived from the file, so the flake stays in
+      # sync with whatever the release matrix builds.
+      sources = builtins.fromJSON (builtins.readFile ./nix/sources.json);
+      releaseSystems = builtins.attrNames sources.systems;
+
+      # Systems the dev shell is offered on (local builds, independent of releases).
+      devSystems = [
         "aarch64-darwin"
         "x86_64-darwin"
         "aarch64-linux"
         "x86_64-linux"
       ];
-      forEachSupportedSystem =
-        f:
-        nixpkgs.lib.genAttrs supportedSystems (
+
+      forSystems =
+        systems: f:
+        nixpkgs.lib.genAttrs systems (
           system:
           f {
+            inherit system;
             pkgs = import nixpkgs { inherit overlays system; };
           }
         );
+
+      # Build the package from the prebuilt binary for `pkgs`'s system.
+      mkKozutsumi =
+        pkgs:
+        let
+          system = pkgs.stdenv.hostPlatform.system;
+          src =
+            sources.systems.${system}
+              or (throw "kozutsumi: no prebuilt binary for ${system} in nix/sources.json");
+        in
+        pkgs.stdenvNoCC.mkDerivation {
+          pname = "kozutsumi";
+          inherit (sources) version;
+          # The release lives in a private repo, so `url` is the GitHub *API*
+          # asset endpoint, fetched with an octet-stream Accept header and netrc
+          # auth (see README: access-tokens / netrc on each machine). curl drops
+          # the auth header on the cross-host redirect to the signed asset URL.
+          # For a public repo a plain browser download URL also works here.
+          src = pkgs.fetchurl {
+            inherit (src) url hash;
+            curlOptsList = [
+              "-H"
+              "Accept: application/octet-stream"
+            ];
+          };
+          dontConfigure = true;
+          dontBuild = true;
+          installPhase = ''
+            runHook preInstall
+            install -Dm755 kozutsumi $out/bin/kozutsumi
+            runHook postInstall
+          '';
+          meta = {
+            description = "A single tool for opening groups of applications, files, folders, and URLs";
+            homepage = "https://github.com/fruit-bird/kozutsumi";
+            mainProgram = "kozutsumi";
+            platforms = releaseSystems;
+          };
+        };
     in
     {
       # Schemas tell Nix about the structure of your flake's outputs
       schemas = flake-schemas.schemas;
 
       # Prebuilt binaries from the GitHub release (nix/sources.json is written by CI).
-      # `nix run github:<owner>/<repo>` / `nix profile install github:<owner>/<repo>`
-      packages = forEachSupportedSystem (
-        { pkgs }:
-        let
-          sources = builtins.fromJSON (builtins.readFile ./nix/sources.json);
-          src = sources.systems.${pkgs.stdenv.hostPlatform.system};
-        in
+      # `nix run github:fruit-bird/kozutsumi` / `nix profile install github:fruit-bird/kozutsumi`
+      packages = forSystems releaseSystems (
+        { pkgs, ... }:
         rec {
           default = kozutsumi;
-          kozutsumi = pkgs.stdenvNoCC.mkDerivation {
-            pname = "kozutsumi";
-            inherit (sources) version;
-            src = pkgs.fetchurl { inherit (src) url hash; };
-            dontConfigure = true;
-            dontBuild = true;
-            installPhase = ''
-              runHook preInstall
-              install -Dm755 kozutsumi $out/bin/kozutsumi
-              runHook postInstall
-            '';
-            meta = {
-              description = "A single tool for opening groups of applications, files, folders, and URLs";
-              mainProgram = "kozutsumi";
-              platforms = builtins.attrNames sources.systems;
-            };
-          };
+          kozutsumi = mkKozutsumi pkgs;
         }
       );
 
+      # Overlay so configs can use `pkgs.kozutsumi` after adding it to nixpkgs.overlays.
+      overlays.default = final: prev: { kozutsumi = mkKozutsumi final; };
+
+      # Declarative configuration modules. The home-manager module is the
+      # recommended way to configure kozutsumi; the system modules install it
+      # system-wide and support a system-level config.
+      homeManagerModules = rec {
+        kozutsumi = import ./nix/hm-module.nix self;
+        default = kozutsumi;
+      };
+      nixosModules = rec {
+        kozutsumi = import ./nix/system-module.nix self;
+        default = kozutsumi;
+      };
+      darwinModules = rec {
+        kozutsumi = import ./nix/system-module.nix self;
+        default = kozutsumi;
+      };
+
       # Development environments
-      devShells = forEachSupportedSystem (
-        { pkgs }:
+      devShells = forSystems devSystems (
+        { pkgs, ... }:
         {
           default = pkgs.mkShell {
             # Pinned packages available in the environment
@@ -104,7 +150,6 @@
             env = {
               RUST_BACKTRACE = "1";
               RUST_SRC_PATH = "${pkgs.rustToolchain}/lib/rustlib/src/rust/library";
-              test = "1";
             };
 
             # A hook run every time you enter the environment
