@@ -2,19 +2,19 @@
   "version": "0.2.0",
   "systems": {
     "aarch64-darwin": {
-      "url": "https://api.github.com/repos/fruit-bird/kozutsumi/releases/assets/670954694",
+      "url": "https://github.com/fruit-bird/kozutsumi/releases/download/v0.2.0/kozutsumi-0.2.0-aarch64-apple-darwin.tar.gz",
       "hash": "sha256-7Hs8GdI+9qFhbTDKcUYw6OpqvFzpoZsfYjRd+biPnKg="
     },
     "x86_64-darwin": {
-      "url": "https://api.github.com/repos/fruit-bird/kozutsumi/releases/assets/670954698",
+      "url": "https://github.com/fruit-bird/kozutsumi/releases/download/v0.2.0/kozutsumi-0.2.0-x86_64-apple-darwin.tar.gz",
       "hash": "sha256-oLcC5hrAz2qVmXEeXAvto1pKiRdyKbe50mi1HaZNGFc="
     },
     "aarch64-linux": {
-      "url": "https://api.github.com/repos/fruit-bird/kozutsumi/releases/assets/670954692",
+      "url": "https://github.com/fruit-bird/kozutsumi/releases/download/v0.2.0/kozutsumi-0.2.0-aarch64-unknown-linux-musl.tar.gz",
       "hash": "sha256-PWSNxsOwxuoKUGXRjznQB/MoVdmERm1Bv0fojxVuRsI="
     },
     "x86_64-linux": {
-      "url": "https://api.github.com/repos/fruit-bird/kozutsumi/releases/assets/670954688",
+      "url": "https://github.com/fruit-bird/kozutsumi/releases/download/v0.2.0/kozutsumi-0.2.0-x86_64-unknown-linux-musl.tar.gz",
       "hash": "sha256-GNe4WCK7m0xJCFLYMAgYuX9DzkklkM5WiUhiPGQU6z4="
     }
   }

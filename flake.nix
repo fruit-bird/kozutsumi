@@ -66,17 +66,8 @@
         pkgs.stdenvNoCC.mkDerivation {
           pname = "kozutsumi";
           inherit (sources) version;
-          # The release lives in a private repo, so `url` is the GitHub *API*
-          # asset endpoint, fetched with an octet-stream Accept header and netrc
-          # auth (see README: access-tokens / netrc on each machine). curl drops
-          # the auth header on the cross-host redirect to the signed asset URL.
-          # For a public repo a plain browser download URL also works here.
           src = pkgs.fetchurl {
             inherit (src) url hash;
-            curlOptsList = [
-              "-H"
-              "Accept: application/octet-stream"
-            ];
           };
           dontConfigure = true;
           dontBuild = true;
