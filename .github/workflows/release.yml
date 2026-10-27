@@ -114,16 +114,13 @@ jobs:
       # `nix run github:<owner>/<repo>` downloads them instead of building.
       - name: Update nix/sources.json
         run: |
-          # Use the GitHub API asset endpoint (not the browser download URL) so
-          # the flake can fetch it from a PRIVATE repo with a netrc token. For a
-          # public repo this URL also works. The asset id is resolved by name.
+          # Browser download URL: it ends in the asset's file name, so fetchurl
+          # names the store path *.tar.gz and the default unpackPhase works.
           entry() { # <nix system> <rust target>
             f="dist/kozutsumi-$VERSION-$2.tar.gz"
             name="$(basename "$f")"
             hash="sha256-$(openssl dgst -sha256 -binary "$f" | base64)"
-            id="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/v$VERSION" \
-              --jq ".assets[] | select(.name == \"$name\") | .id")"
-            url="https://api.github.com/repos/$GITHUB_REPOSITORY/releases/assets/$id"
+            url="https://github.com/$GITHUB_REPOSITORY/releases/download/v$VERSION/$name"
             jq -n --arg k "$1" --arg url "$url" --arg hash "$hash" \
               '{($k): {url: $url, hash: $hash}}'
           }
